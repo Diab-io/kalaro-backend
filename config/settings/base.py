@@ -21,6 +21,7 @@ DJANGO_APPS = [
 ]
 THIRD_PARTY_APPS = [
     "corsheaders",
+    "ninja_extra",
     "ninja_jwt",
 ]
 LOCAL_APPS = [
