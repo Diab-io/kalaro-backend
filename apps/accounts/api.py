@@ -43,10 +43,12 @@ otp_throttle = [AnonRateThrottle("5/m")]
 
 
 # ---------------- registration and verification ----------------
-
 @router.post("/register", response={201: MessageOut}, auth=None,
              throttle=credential_throttle)
 def register(request, payload: RegisterIn):
+    if not payload.agreed_to_terms:
+        raise HttpError(400, "You must agree to the Terms of Service to continue.")
+
     email = payload.email.lower()
     if User.objects.filter(email=email).exists():
         raise HttpError(409, "An account with this email already exists.")
@@ -58,7 +60,12 @@ def register(request, payload: RegisterIn):
         last_name=payload.last_name,
         role=Role.STUDENT,
     )
-    Profile.objects.create(user=user)
+    Profile.objects.create(
+        user=user,
+        current_role=payload.current_role,
+        experience_level=payload.experience_level,
+        goal=payload.goal,
+    )
     start_email_verification(user)
     return 201, {"detail": "Account created. Check your email for a verification code."}
 
@@ -80,6 +87,15 @@ def resend_code(request, payload: ResendCodeIn):
         start_email_verification(user)
     # Always the same response, whether or not the account exists.
     return {"detail": "If that account needs verification, a code has been sent."}
+
+
+@router.get("/registration-options", auth=None)
+def registration_options(request):
+    return {
+        "current_roles": dict(Profile.CurrentRole.choices),
+        "experience_levels": dict(Profile.ExperienceLevel.choices),
+        "goals": dict(Profile.Goal.choices),
+    }
 
 
 # ---------------- login ----------------
@@ -123,7 +139,19 @@ def password_reset_confirm(request, payload: PasswordResetConfirmIn):
 
 @router.get("/me", response=UserOut, auth=any_user)
 def me(request):
-    return request.auth
+    user = request.auth
+    profile = getattr(user, "profile", None)
+    return {
+        "id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "role": user.role,
+        "email_verified": user.email_verified,
+        "current_role": profile.current_role if profile else "",
+        "experience_level": profile.experience_level if profile else "",
+        "goal": profile.goal if profile else "",
+    }
 
 
 @router.patch("/me", response=UserOut, auth=any_user)

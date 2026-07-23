@@ -8,6 +8,10 @@ class RegisterIn(Schema):
     password: str = Field(min_length=10)
     first_name: str = ""
     last_name: str = ""
+    current_role: str = ""
+    experience_level: str = ""
+    goal: str = ""
+    agreed_to_terms: bool = False
 
 
 class VerifyEmailIn(Schema):
@@ -65,6 +69,9 @@ class UserOut(Schema):
     last_name: str
     role: str
     email_verified: bool
+    current_role: str = ""
+    experience_level: str = ""
+    goal: str = ""
 
 
 class MessageOut(Schema):

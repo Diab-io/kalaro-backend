@@ -151,13 +151,41 @@ class OneTimeCode(TimeStampedModel):
             and timezone.now() < self.expires_at
         )
 
-
 class Profile(TimeStampedModel):
+    class CurrentRole(models.TextChoices):
+        STUDENT_GRADUATE = "student_graduate", _("Student / Graduate")
+        HMO_STAFF = "hmo_staff", _("HMO Staff")
+        HEALTHCARE_PROVIDER = "healthcare_provider", _("Healthcare Provider")
+        HOSPITAL_ADMIN = "hospital_admin", _("Hospital / Clinic Administrator")
+        INSURANCE_PROFESSIONAL = "insurance_professional", _("Insurance Professional")
+        CAREER_CHANGER = "career_changer", _("Career Changer")
+        OTHER = "other", _("Other")
+
+    class ExperienceLevel(models.TextChoices):
+        NONE = "0", _("No experience (0 years)")
+        ONE_TO_TWO = "1-2", _("1 – 2 years")
+        THREE_TO_FIVE = "3-5", _("3 – 5 years")
+        SIX_TO_TEN = "6-10", _("6 – 10 years")
+        TEN_PLUS = "10+", _("10+ years")
+
+    class Goal(models.TextChoices):
+        GET_JOB = "get_job", _("Get a job in an HMO")
+        ADVANCE_ROLE = "advance_role", _("Advance in my current HMO role")
+        TRANSITION = "transition", _("Transition from another healthcare role")
+        TEAM_KNOWLEDGE = "team_knowledge", _("Improve my team's HMO knowledge")
+        CERTIFICATION = "certification", _("Earn a professional certification")
+        GENERAL_LEARNING = "general_learning", _("General knowledge & learning")
+
     user = models.OneToOneField("accounts.User", on_delete=models.CASCADE,
                                 related_name="profile")
     phone = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     bio = models.TextField(blank=True)
+
+    current_role = models.CharField(max_length=30, choices=CurrentRole.choices, blank=True)
+    experience_level = models.CharField(max_length=10, choices=ExperienceLevel.choices,
+                                        blank=True)
+    goal = models.CharField(max_length=30, choices=Goal.choices, blank=True)
 
 
 class InstructorInvite(TimeStampedModel):
