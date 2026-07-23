@@ -103,3 +103,6 @@ CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 # Google OAuth (module 1)
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
+
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@kalaro.local")
+FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", default="http://localhost:3000")
