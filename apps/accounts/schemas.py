@@ -69,3 +69,21 @@ class UserOut(Schema):
 
 class MessageOut(Schema):
     detail: str
+
+
+class InviteIn(Schema):
+    email: EmailStr
+
+
+class InviteOut(Schema):
+    id: int
+    email: str
+    expires_at: str
+
+
+class AdminUserCreateIn(Schema):
+    email: EmailStr
+    password: str = Field(min_length=10)
+    first_name: str = ""
+    last_name: str = ""
+    role: str = "instructor"
