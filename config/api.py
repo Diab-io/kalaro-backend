@@ -3,6 +3,7 @@ from ninja import NinjaAPI
 from ninja.errors import AuthenticationError, ValidationError
 from ninja_jwt.controller import NinjaJWTDefaultController
 from ninja_extra import NinjaExtraAPI
+from apps.accounts.api import router as accounts_router
 
 api = NinjaExtraAPI(
     title="Kalaro Institute LMS API",
@@ -54,3 +55,6 @@ def on_not_found(request, exc):
 @api.get("/health", auth=None, tags=["system"])
 def health(request):
     return {"status": "ok"}
+
+
+api.add_router("/auth", accounts_router)
