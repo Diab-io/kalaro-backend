@@ -18,6 +18,8 @@ dependencies = [
     "gunicorn>=23.0",
     "whitenoise>=6.7",
     "google-auth>=2.34",
+    "pydantic[email]",
+    "requests",
 ]
 
 [dependency-groups]
