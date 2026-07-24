@@ -1,12 +1,13 @@
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from ninja import Router
+from ninja import Router, File, Form
 from ninja.errors import HttpError
+from ninja.files import UploadedFile
 
 from apps.accounts.auth import admin, any_user, instructor
 
-from .models import Course, Lesson, Module
-from .permissions import check_course_owner
+from .models import Course, Lesson, Module, Resource
+from .permissions import check_course_owner, check_enrolled
 from .schemas import (
     CourseCreateIn,
     CourseDetailOut,
@@ -15,8 +16,10 @@ from .schemas import (
     LessonIn,
     ModuleIn,
     ReorderIn,
+    ResourceOut,
 )
-from .video import create_stream_upload
+from .video import create_stream_upload, get_playback_info
+from .progress import mark_lesson_complete
 
 router = Router(tags=["catalog"])
 
@@ -130,6 +133,72 @@ def reorder_lessons(request, lesson_id: int, payload: ReorderIn):
         Lesson.objects.filter(pk=lid, module=first.module).update(order=index)
     return {"status": "reordered"}
 
+
+@router.get("/lessons/{lesson_id}/playback", auth=any_user)
+def get_lesson_playback(request, lesson_id: int):
+    lesson = get_object_or_404(Lesson, pk=lesson_id)
+    course = lesson.module.course
+
+    if request.auth.role in ("instructor", "admin"):
+        check_course_owner(request.auth, course)  # ownership, not enrollment
+    else:
+        check_enrolled(request.auth, course)  # the real gate, replacing the TODO
+
+    playback = get_playback_info(lesson.video_provider_id)
+    if not playback["ready"]:
+        raise HttpError(409, "This video is still processing.")
+    return playback
+
+
+@router.post("/lessons/{lesson_id}/complete", auth=any_user)
+def complete_lesson(request, lesson_id: int):
+    lesson = get_object_or_404(Lesson, pk=lesson_id)
+    check_enrolled(request.auth, lesson.module.course)
+
+    progress = mark_lesson_complete(user=request.auth, lesson=lesson)
+    return {"completed_at": progress.completed_at}
+
+
+@router.get("/courses/{course_id}/progress", auth=any_user)
+def get_course_progress(request, course_id: int):
+    from .models import CourseProgress
+    course = get_object_or_404(Course, pk=course_id)
+    check_enrolled(request.auth, course)
+
+    cp = CourseProgress.objects.filter(user=request.auth, course=course).first()
+    return {
+        "percent": cp.percent if cp else 0,
+        "completed_at": cp.completed_at if cp else None,
+    }
+
+
+@router.post("/lessons/{lesson_id}/resources", response={201: ResourceOut}, auth=instructor)
+def add_resource(request, lesson_id: int, title: str = Form(...), file: UploadedFile = File(...)):
+    lesson = get_object_or_404(Lesson, pk=lesson_id)
+    check_course_owner(request.auth, lesson.module.course)
+
+    resource = Resource.objects.create(
+        lesson=lesson, title=title, file=file, size_bytes=file.size,
+    )
+    return 201, resource
+
+
+@router.delete("/resources/{resource_id}", auth=instructor)
+def delete_resource(request, resource_id: int):
+    resource = get_object_or_404(Resource, pk=resource_id)
+    check_course_owner(request.auth, resource.lesson.module.course)
+    resource.delete()
+    return {"status": "deleted"}
+
+
+@router.get("/lessons/{lesson_id}/resources", response=list[ResourceOut], auth=any_user)
+def list_resources(request, lesson_id: int):
+    lesson = get_object_or_404(Lesson, pk=lesson_id)
+    if request.auth.role in ("instructor", "admin"):
+        check_course_owner(request.auth, lesson.module.course)
+    else:
+        check_enrolled(request.auth, lesson.module.course)
+    return lesson.resources.all()
 
 # ---------------- admin ----------------
 
