@@ -87,3 +87,14 @@ class CourseDetailOut(CourseListOut):
     duration_weeks: int | None
     instructor_id: int
     modules: list[ModuleOut]
+
+
+class ResourceOut(Schema):
+    id: int
+    title: str
+    file_url: str
+    size_bytes: int
+
+    @staticmethod
+    def resolve_file_url(obj):
+        return obj.file.url
