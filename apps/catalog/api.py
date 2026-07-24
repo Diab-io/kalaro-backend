@@ -16,6 +16,7 @@ from .schemas import (
     ModuleIn,
     ReorderIn,
 )
+from .video import create_stream_upload
 
 router = Router(tags=["catalog"])
 
@@ -138,3 +139,17 @@ def admin_list_all_courses(request, status: str | None = None):
     if status:
         qs = qs.filter(status=status)
     return qs
+
+@router.post("/lessons/{lesson_id}/video-upload-url", auth=instructor)
+def get_video_upload_url(request, lesson_id: int):
+    lesson = get_object_or_404(Lesson, pk=lesson_id)
+    check_course_owner(request.auth, lesson.module.course)
+
+    upload = create_stream_upload(title=lesson.title)
+    lesson.video_provider_id = upload["video_id"]
+    lesson.save(update_fields=["video_provider_id"])
+
+    return {
+        "video_id": upload["video_id"],
+        "upload_url": upload["upload_url"],
+    }
