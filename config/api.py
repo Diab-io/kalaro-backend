@@ -5,6 +5,7 @@ from ninja_jwt.controller import NinjaJWTDefaultController
 from ninja_extra import NinjaExtraAPI
 from apps.accounts.api import router as accounts_router
 from apps.catalog.api import router as catalog_router
+from apps.payments.api import router as payments_router
 
 api = NinjaExtraAPI(
     title="Kalaro Institute LMS API",
@@ -60,3 +61,4 @@ def health(request):
 
 api.add_router("/auth", accounts_router)
 api.add_router("/catalog", catalog_router)
+api.add_router("/payments", payments_router)
