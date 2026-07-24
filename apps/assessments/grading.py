@@ -1,0 +1,40 @@
+from django.db import transaction
+from django.utils import timezone
+from ninja.errors import HttpError
+
+from .models import Answer, QuizAttempt
+
+
+@transaction.atomic
+def submit_quiz_attempt(attempt: QuizAttempt) -> QuizAttempt:
+    if attempt.status != QuizAttempt.Status.IN_PROGRESS:
+        raise HttpError(409, "This attempt has already been submitted.")
+
+    answers = attempt.answers.select_related("question")
+    total_points = sum(a.question.points for a in answers)
+    earned_points = 0
+    has_ungraded_short_answer = False
+
+    for answer in answers:
+        if answer.question.type == "mcq":
+            answer.is_correct = bool(
+                answer.selected_choice and answer.selected_choice.is_correct
+            )
+            answer.points_awarded = answer.question.points if answer.is_correct else 0
+            answer.save(update_fields=["is_correct", "points_awarded"])
+            earned_points += answer.points_awarded
+        else:
+            has_ungraded_short_answer = True  # instructor grades this manually
+
+    attempt.submitted_at = timezone.now()
+
+    if has_ungraded_short_answer:
+        attempt.status = QuizAttempt.Status.AWAITING_GRADING
+        # score/passed stay null until instructor finishes grading
+    else:
+        attempt.score_percent = round((earned_points / total_points) * 100, 1) if total_points else 0
+        attempt.passed = attempt.score_percent >= attempt.quiz.pass_percent
+        attempt.status = QuizAttempt.Status.GRADED
+
+    attempt.save()
+    return attempt
