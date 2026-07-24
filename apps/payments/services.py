@@ -13,6 +13,8 @@ def grant_enrollment(*, user, course: Course, source: str, order: Order | None =
     times for the same user+course — the DB constraint makes duplicates
     a no-op rather than an error path we have to remember to handle.
     """
+    if course.instructor_id == user.id:
+        raise HttpError(400, "An instructor cannot be enrolled in their own course.")
     existing = Enrollment.objects.filter(
         user=user, course=course, status=Enrollment.Status.ACTIVE
     ).first()
