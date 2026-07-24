@@ -14,7 +14,6 @@ class LessonIn(Schema):
     text_content: str = ""
     video_provider_id: str = ""
     duration_seconds: int = 0
-    is_preview: bool = False
 
 
 class CourseCreateIn(Schema):
