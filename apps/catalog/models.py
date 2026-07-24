@@ -101,3 +101,31 @@ class Resource(TimeStampedModel):
 
     def __str__(self):
         return self.title
+
+
+class LessonProgress(TimeStampedModel):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="lesson_progress")
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="progress_entries")
+    seconds_watched = models.PositiveIntegerField(default=0)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "lesson"], name="uniq_user_lesson_progress")
+        ]
+
+
+class CourseProgress(TimeStampedModel):
+    """Denormalized — recomputing across lessons on every dashboard
+    load is the first performance problem this avoids."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="course_progress")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="progress_entries")
+    percent = models.PositiveSmallIntegerField(default=0)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "course"], name="uniq_user_course_progress")
+        ]
