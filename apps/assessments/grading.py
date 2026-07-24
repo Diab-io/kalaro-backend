@@ -38,3 +38,25 @@ def submit_quiz_attempt(attempt: QuizAttempt) -> QuizAttempt:
 
     attempt.save()
     return attempt
+
+
+@transaction.atomic
+def grade_short_answers(attempt: QuizAttempt, scores: dict[int, float]) -> QuizAttempt:
+    """scores: {answer_id: points_awarded}"""
+    if attempt.status != QuizAttempt.Status.AWAITING_GRADING:
+        raise HttpError(409, "This attempt is not awaiting grading.")
+
+    for answer in attempt.answers.filter(question__type="short_answer"):
+        if answer.id in scores:
+            answer.points_awarded = scores[answer.id]
+            answer.is_correct = scores[answer.id] >= answer.question.points
+            answer.save(update_fields=["points_awarded", "is_correct"])
+
+    total_points = sum(a.question.points for a in attempt.answers.select_related("question"))
+    earned = sum(a.points_awarded for a in attempt.answers.all())
+
+    attempt.score_percent = round((earned / total_points) * 100, 1) if total_points else 0
+    attempt.passed = attempt.score_percent >= attempt.quiz.pass_percent
+    attempt.status = QuizAttempt.Status.GRADED
+    attempt.save()
+    return attempt
