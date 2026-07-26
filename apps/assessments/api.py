@@ -21,6 +21,7 @@ from .schemas import (
     SubmissionOut,
     SubmitAttemptIn,
 )
+from apps.notifications.services import notify
 
 router = Router(tags=["assessments"])
 
@@ -161,4 +162,11 @@ def grade_submission(request, submission_id: int, payload: GradeIn):
     )
     submission.status = Submission.Status.GRADED
     submission.save(update_fields=["status"])
+
+    notify(
+        user=submission.user, type="assignment_graded",
+        title="Your assignment has been graded",
+        body=f"You scored {payload.points} on {submission.assignment.title}.",
+        link=f"/assignments/{submission.assignment_id}/results",
+    )
     return {"status": "graded"}
