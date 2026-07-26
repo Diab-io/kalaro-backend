@@ -19,6 +19,8 @@ from .schemas import (
     OrderOut,
 )
 from .services import grant_enrollment
+from apps.notifications.services import notify
+from django.utils import timezone
 
 router = Router(tags=["payments"])
 
@@ -144,7 +146,6 @@ def review_manual_payment(request, order_id: int, payload: ManualReviewIn):
 
     manual.reviewed_by = request.auth
     manual.review_note = payload.note
-    from django.utils import timezone
     manual.reviewed_at = timezone.now()
 
     if payload.approve:
@@ -155,10 +156,22 @@ def review_manual_payment(request, order_id: int, payload: ManualReviewIn):
             user=manual.order.user, course=manual.order.course,
             source="manual", order=manual.order,
         )
+        notify(
+            user=manual.order.user, type="payment_approved",
+            title="Payment approved",
+            body=f"Your payment for {manual.order.course.title} has been approved. You now have access.",
+            link=f"/courses/{manual.order.course.slug}",
+        )
     else:
         manual.status = ManualPayment.Status.REJECTED
         manual.order.status = Order.Status.FAILED
         manual.order.save(update_fields=["status"])
+        notify(
+            user=manual.order.user, type="payment_rejected",
+            title="Payment could not be verified",
+            body=f"We couldn't verify your payment for {manual.order.course.title}. "
+                 f"Reason: {payload.note or 'Please contact support.'}",
+        )
 
     manual.save()
     return {"status": manual.status}
