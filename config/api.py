@@ -7,6 +7,7 @@ from apps.accounts.api import router as accounts_router
 from apps.catalog.api import router as catalog_router
 from apps.payments.api import router as payments_router
 from apps.assessments.api import router as assessments_router
+from apps.notifications.api import router as notifications_router
 
 api = NinjaExtraAPI(
     title="Kalaro Institute LMS API",
@@ -64,3 +65,4 @@ api.add_router("/auth", accounts_router)
 api.add_router("/catalog", catalog_router)
 api.add_router("/payments", payments_router)
 api.add_router("/assessments", assessments_router)
+api.add_router("/notifications", notifications_router)
