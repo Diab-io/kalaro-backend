@@ -3,6 +3,7 @@ from django.utils import timezone
 from ninja.errors import HttpError
 
 from .models import Answer, QuizAttempt
+from apps.notifications.services import notify
 
 
 @transaction.atomic
@@ -59,4 +60,10 @@ def grade_short_answers(attempt: QuizAttempt, scores: dict[int, float]) -> QuizA
     attempt.passed = attempt.score_percent >= attempt.quiz.pass_percent
     attempt.status = QuizAttempt.Status.GRADED
     attempt.save()
+    notify(
+        user=attempt.user, type="quiz_graded",
+        title="Your quiz has been graded",
+        body=f"You scored {attempt.score_percent}% on {attempt.quiz.title}.",
+        link=f"/quizzes/{attempt.quiz_id}/results",
+    )
     return attempt
