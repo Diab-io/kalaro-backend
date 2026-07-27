@@ -90,6 +90,16 @@ def publish_course(request, course_id: int):
     return course
 
 
+@router.post("/courses/{course_id}/cover-image", response=CourseDetailOut, auth=instructor)
+def upload_cover_image(request, course_id: int, image: UploadedFile = File(...)):
+    course = get_object_or_404(Course, pk=course_id)
+    check_course_owner(request.auth, course)
+
+    course.cover_image = image
+    course.save(update_fields=["cover_image"])
+    return course
+
+
 # ---------------- modules ----------------
 
 @router.post("/courses/{course_id}/modules", response={201: dict}, auth=instructor)
