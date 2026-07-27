@@ -54,7 +54,6 @@ class LessonOut(Schema):
     order: int
     content_type: str
     duration_seconds: int
-    is_preview: bool
     # video_provider_id and text_content deliberately excluded —
     # gated behind enrollment, added back in module 4
 
