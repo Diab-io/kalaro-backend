@@ -20,6 +20,8 @@ dependencies = [
     "google-auth>=2.34",
     "pydantic[email]",
     "requests",
+    "google-api-python-client>=2.198.0",
+    "google-auth-oauthlib>=1.4.0",
 ]
 
 [dependency-groups]
