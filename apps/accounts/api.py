@@ -6,6 +6,8 @@ from django.utils import timezone
 from ninja import Router
 from ninja.errors import HttpError
 from ninja.throttling import AnonRateThrottle
+from ninja import File
+from ninja.files import UploadedFile
 
 from .auth import admin, any_user
 from .models import InstructorInvite, OneTimeCode, Profile, Role, User
@@ -151,8 +153,17 @@ def me(request):
         "current_role": profile.current_role if profile else "",
         "experience_level": profile.experience_level if profile else "",
         "goal": profile.goal if profile else "",
+        "avatar_url": profile.avatar.url if profile and profile.avatar else None,
     }
 
+
+@router.post("/me/avatar", response=UserOut, auth=any_user)
+def upload_avatar(request, avatar: UploadedFile = File(...)):
+    user = request.auth
+    profile, _ = Profile.objects.get_or_create(user=user)
+    profile.avatar = avatar
+    profile.save(update_fields=["avatar"])
+    return me(request)
 
 @router.patch("/me", response=UserOut, auth=any_user)
 def update_me(request, payload: ProfileUpdateIn):

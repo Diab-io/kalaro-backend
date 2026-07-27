@@ -72,6 +72,7 @@ class UserOut(Schema):
     current_role: str = ""
     experience_level: str = ""
     goal: str = ""
+    avatar_url: str | None = None
 
 
 class MessageOut(Schema):
