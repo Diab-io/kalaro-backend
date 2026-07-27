@@ -15,13 +15,26 @@ def send_otp_email(user_id: int, raw_code: str, purpose: str) -> None:
     user = User.objects.filter(pk=user_id).first()
     if not user:
         return
-    send_mail(
-        subject=SUBJECTS[purpose],
-        message=(
+
+    if purpose == OneTimeCode.Purpose.VERIFY_EMAIL:
+        message = (
+            f"Hello {user.full_name},\n\n"
+            f"Your verification code is: {raw_code}\n\n"
+            f"Enter this code on the verification page to continue.\n\n"
+            f"It expires in 10 minutes. If you did not request this, ignore this email."
+        )
+    else:
+        link = f"{settings.FRONTEND_BASE_URL}/forgot-password?email={user.email}&code={raw_code}"
+        message = (
             f"Hello {user.full_name},\n\n"
             f"Your code is: {raw_code}\n\n"
+            f"Click here to continue: {link}\n\n"
             f"It expires in 10 minutes. If you did not request this, ignore this email."
-        ),
+        )
+
+    send_mail(
+        subject=SUBJECTS.get(purpose, "Your Kalaro Institute verification code"),
+        message=message,
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
     )
