@@ -222,13 +222,17 @@ def admin_create_user(request, payload: AdminUserCreateIn):
 
     user = User.objects.create_user(
         email=email,
-        password=payload.password,
+        password=None,
         first_name=payload.first_name,
         last_name=payload.last_name,
         role=payload.role,
         email_verified=True,
     )
     Profile.objects.create(user=user)
+
+    raw = OneTimeCode.issue(user, OneTimeCode.Purpose.RESET_PASSWORD)
+    send_otp_email.delay(user.pk, raw, OneTimeCode.Purpose.RESET_PASSWORD)
+
     return 201, user
 
 

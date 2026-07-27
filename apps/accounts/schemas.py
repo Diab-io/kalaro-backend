@@ -90,7 +90,6 @@ class InviteOut(Schema):
 
 class AdminUserCreateIn(Schema):
     email: EmailStr
-    password: str = Field(min_length=10)
     first_name: str = ""
     last_name: str = ""
     role: str = "instructor"

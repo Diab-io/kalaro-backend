@@ -6,7 +6,7 @@ from .models import InstructorInvite, OneTimeCode, User
 
 SUBJECTS = {
     OneTimeCode.Purpose.VERIFY_EMAIL: "Verify your Kalaro Institute email",
-    OneTimeCode.Purpose.RESET_PASSWORD: "Reset your Kalaro Institute password",
+    OneTimeCode.Purpose.RESET_PASSWORD: "Set your Kalaro Institute password",
 }
 
 
