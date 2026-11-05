@@ -1,3 +1,6 @@
+import uuid
+
+from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -71,6 +74,10 @@ class Product(TimeStampedModel):
     badge = models.CharField(max_length=40, blank=True)
     detail_label = models.CharField(max_length=60, blank=True)
 
+    # Downloadable file for digital products. Never exposed by URL; buyers get it
+    # through the gated order download endpoint.
+    digital_file = models.FileField(upload_to="shop_digital/", blank=True, null=True)
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["status", "category"])]
@@ -86,3 +93,95 @@ class Product(TimeStampedModel):
 
     def __str__(self):
         return self.title
+
+
+class ShopOrder(TimeStampedModel):
+    """A bag checkout. Separate from payments.Order, which is one-course-per-order."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Pending payment")
+        PAID = "paid", _("Paid")
+        FAILED = "failed", _("Failed")
+        CANCELLED = "cancelled", _("Cancelled")
+        REFUNDED = "refunded", _("Refunded")
+
+    class Fulfillment(models.TextChoices):
+        UNFULFILLED = "unfulfilled", _("Unfulfilled")
+        SHIPPED = "shipped", _("Shipped")
+        DELIVERED = "delivered", _("Delivered")
+
+    class Provider(models.TextChoices):
+        PAYSTACK = "paystack", _("Paystack")
+        MANUAL = "manual", _("Manual bank transfer")
+
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    reference = models.CharField(max_length=100, unique=True, db_index=True)  # "shop-..."
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                             related_name="shop_orders")
+
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING,
+                              db_index=True)
+    fulfillment_status = models.CharField(max_length=20, choices=Fulfillment.choices,
+                                          default=Fulfillment.UNFULFILLED, db_index=True)
+
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, default="NGN")
+
+    payment_provider = models.CharField(max_length=20, choices=Provider.choices, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    provider_payload = models.JSONField(default=dict, blank=True)
+
+    # Delivery snapshot (blank for digital-only orders)
+    delivery_name = models.CharField(max_length=150, blank=True)
+    delivery_phone = models.CharField(max_length=30, blank=True)
+    delivery_address = models.CharField(max_length=300, blank=True)
+    delivery_city = models.CharField(max_length=100, blank=True)
+    delivery_state = models.CharField(max_length=100, blank=True)
+
+    # True while the order's stock is held back from the product (reserved at checkout,
+    # returned on cancel/fail/expiry/restocked refund).
+    stock_reserved = models.BooleanField(default=False)
+    admin_note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def requires_delivery(self) -> bool:
+        return any(i.product_type == Product.ProductType.PHYSICAL for i in self.items.all())
+
+    def __str__(self):
+        return f"{self.reference} ({self.status})"
+
+
+class ShopOrderItem(TimeStampedModel):
+    order = models.ForeignKey(ShopOrder, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name="order_items")
+    # Snapshots, so history survives product edits/deletion
+    title = models.CharField(max_length=200)
+    product_type = models.CharField(max_length=20, choices=Product.ProductType.choices)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveSmallIntegerField(default=1)
+
+    @property
+    def line_total(self):
+        return self.unit_price * self.quantity
+
+
+class ShopManualPayment(TimeStampedModel):
+    class Status(models.TextChoices):
+        PENDING_REVIEW = "pending_review", _("Pending review")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+
+    order = models.OneToOneField(ShopOrder, on_delete=models.CASCADE,
+                                 related_name="manual_payment")
+    proof_file = models.FileField(upload_to="shop_payment_proofs/")
+    bank_reference = models.CharField(max_length=150, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices,
+                              default=Status.PENDING_REVIEW)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                    null=True, blank=True, related_name="+")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=300, blank=True)

@@ -103,5 +103,149 @@ class ProductDetailOut(ProductListOut):
 class ProductAdminOut(ProductDetailOut):
     status: str
     stock_quantity: int | None = None
+    has_digital_file: bool = False
+
+    @staticmethod
+    def resolve_has_digital_file(obj):
+        return bool(obj.digital_file)
+
     created_at: datetime
     updated_at: datetime
+
+
+# ---------------- orders ----------------
+
+class OrderLineIn(Schema):
+    product_id: int
+    quantity: int = 1
+
+
+class DeliveryIn(Schema):
+    name: str
+    phone: str
+    address: str
+    city: str
+    state: str
+
+
+class OrderCreateIn(Schema):
+    items: list[OrderLineIn]
+    delivery: DeliveryIn | None = None  # required when the bag has a physical item
+
+
+class PaystackInitOut(Schema):
+    authorization_url: str
+    reference: str
+
+
+class OrderItemOut(Schema):
+    id: int
+    product_id: int | None = None
+    title: str
+    product_type: str
+    unit_price: float
+    quantity: int
+    line_total: float
+    downloadable: bool = False
+
+    @staticmethod
+    def resolve_line_total(obj):
+        return float(obj.line_total)
+
+    @staticmethod
+    def resolve_downloadable(obj):
+        return bool(
+            obj.order.status == "paid"
+            and obj.product_id
+            and obj.product_type == "digital"
+            and obj.product.digital_file
+        )
+
+
+class DeliveryOut(Schema):
+    name: str
+    phone: str
+    address: str
+    city: str
+    state: str
+
+
+class OrderOut(Schema):
+    reference: str
+    status: str
+    fulfillment_status: str
+    total: float
+    currency: str
+    payment_provider: str
+    paid_at: datetime | None = None
+    created_at: datetime
+    requires_delivery: bool
+    delivery: DeliveryOut | None = None
+    manual_payment_status: str | None = None
+    items: list[OrderItemOut]
+
+    @staticmethod
+    def resolve_total(obj):
+        return float(obj.total)
+
+    @staticmethod
+    def resolve_items(obj):
+        return list(obj.items.all())
+
+    @staticmethod
+    def resolve_delivery(obj):
+        if not obj.delivery_address:
+            return None
+        return {
+            "name": obj.delivery_name, "phone": obj.delivery_phone,
+            "address": obj.delivery_address, "city": obj.delivery_city,
+            "state": obj.delivery_state,
+        }
+
+    @staticmethod
+    def resolve_manual_payment_status(obj):
+        manual = getattr(obj, "manual_payment", None)
+        return manual.status if manual else None
+
+
+class OrderAdminOut(OrderOut):
+    id: int
+    user_id: int
+    user_email: str
+    admin_note: str
+    manual_proof_url: str | None = None
+    manual_bank_reference: str | None = None
+    manual_review_note: str | None = None
+
+    @staticmethod
+    def resolve_user_email(obj):
+        return obj.user.email
+
+    @staticmethod
+    def resolve_manual_proof_url(obj):
+        manual = getattr(obj, "manual_payment", None)
+        return manual.proof_file.url if manual else None
+
+    @staticmethod
+    def resolve_manual_bank_reference(obj):
+        manual = getattr(obj, "manual_payment", None)
+        return manual.bank_reference if manual else None
+
+    @staticmethod
+    def resolve_manual_review_note(obj):
+        manual = getattr(obj, "manual_payment", None)
+        return manual.review_note if manual else None
+
+
+class OrderAdminUpdateIn(Schema):
+    fulfillment_status: str | None = None
+    admin_note: str | None = None
+
+
+class ManualReviewIn(Schema):
+    approve: bool
+    note: str = ""
+
+
+class RefundIn(Schema):
+    restock: bool = False
