@@ -35,8 +35,11 @@ LOCAL_APPS = [
     "apps.payments",
     "apps.assessments",
     "apps.notifications",
+    "apps.live",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+GOOGLE_CALENDAR_REDIRECT_URI = env("GOOGLE_CALENDAR_REDIRECT_URI",
+                                    default="http://localhost:8000/api/v1/live/google/callback")
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -98,6 +101,13 @@ CELERY_BROKER_URL = env("REDIS_URL")
 CELERY_RESULT_BACKEND = env("REDIS_URL")
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BEAT_SCHEDULE = {
+    "send-class-reminders": {
+        "task": "apps.live.tasks.send_class_reminders",
+        "schedule": 300.0,  # every 5 minutes, catches both windows via the range check
+    },
+}
 
 CACHES = {
     "default": {
