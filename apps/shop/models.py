@@ -66,6 +66,11 @@ class Product(TimeStampedModel):
                               db_index=True)
     is_featured = models.BooleanField(default=False)
 
+    # Card presentation: pill over the image (e.g. "Best seller") and the small
+    # text next to the price (e.g. "296 pages"). Both optional, free text.
+    badge = models.CharField(max_length=40, blank=True)
+    detail_label = models.CharField(max_length=60, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["status", "category"])]

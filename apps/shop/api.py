@@ -37,6 +37,10 @@ def _validate_product_fields(data: dict):
         raise HttpError(400, "compare_at_price cannot be negative.")
     if data.get("stock_quantity") is not None and data["stock_quantity"] < 0:
         raise HttpError(400, "stock_quantity cannot be negative.")
+    if len(data.get("badge") or "") > 40:
+        raise HttpError(400, "badge must be 40 characters or fewer.")
+    if len(data.get("detail_label") or "") > 60:
+        raise HttpError(400, "detail_label must be 60 characters or fewer.")
     if "currency" in data and len(data["currency"]) != 3:
         raise HttpError(400, "currency must be a 3-letter code.")
     if data.get("category_id") is not None and not ProductCategory.objects.filter(

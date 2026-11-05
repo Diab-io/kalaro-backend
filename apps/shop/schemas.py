@@ -30,6 +30,8 @@ class ProductIn(Schema):
     stock_quantity: int | None = None
     status: str = "draft"
     is_featured: bool = False
+    badge: str = ""
+    detail_label: str = ""
 
 
 class ProductUpdateIn(Schema):
@@ -44,6 +46,8 @@ class ProductUpdateIn(Schema):
     stock_quantity: int | None = None  # null explicitly = unlimited
     status: str | None = None
     is_featured: bool | None = None
+    badge: str | None = None
+    detail_label: str | None = None
 
 
 # ---- outputs ----
@@ -75,11 +79,13 @@ class ProductListOut(Schema):
     category_id: int | None = None
     category_name: str | None = None
     product_type: str
-    price: Decimal
-    compare_at_price: Decimal | None = None
+    price: float  # numeric in JSON, matching the course endpoints
+    compare_at_price: float | None = None
     currency: str
     in_stock: bool
     is_featured: bool
+    badge: str
+    detail_label: str
 
     @staticmethod
     def resolve_image(obj):

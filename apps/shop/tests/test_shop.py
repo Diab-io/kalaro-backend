@@ -40,6 +40,11 @@ def category():
     return ProductCategory.objects.create(name="Merch")
 
 
+def test_default_categories_seeded():
+    names = list(ProductCategory.objects.filter(order__lt=4).values_list("name", flat=True))
+    assert names[:4] == ["Books", "Templates", "Kits", "Apparel"]
+
+
 @pytest.fixture
 def published(category):
     return Product.objects.create(title="Kalaro Hoodie", price=15000, category=category,
@@ -74,7 +79,7 @@ def test_public_hides_inactive_category_products(published, category):
     category.is_active = False
     category.save()
     assert call("get", None, f"{API}/products").json() == []
-    assert call("get", None, f"{API}/categories").json() == []
+    assert "merch" not in [c["slug"] for c in call("get", None, f"{API}/categories").json()]
 
 
 def test_public_detail_and_draft_404(published):
@@ -102,14 +107,17 @@ def test_admin_endpoints_require_admin(instructor_user, published):
 # ---- admin categories ----
 
 def test_admin_category_crud(admin_user):
-    r = call("post", admin_user, f"{API}/admin/categories", {"name": "Books"})
-    assert r.status_code == 201 and r.json()["slug"] == "books"
+    r = call("post", admin_user, f"{API}/admin/categories", {"name": "Stationery"})
+    assert r.status_code == 201 and r.json()["slug"] == "stationery"
     cid = r.json()["id"]
     assert call("post", admin_user, f"{API}/admin/categories",
-                {"name": "books"}).status_code == 409
+                {"name": "stationery"}).status_code == 409
+    assert call("post", admin_user, f"{API}/admin/categories",
+                {"name": "books"}).status_code == 409  # seeded default
     r = call("patch", admin_user, f"{API}/admin/categories/{cid}", {"is_active": False})
     assert r.status_code == 200 and r.json()["is_active"] is False
-    assert call("get", admin_user, f"{API}/admin/categories").json()[0]["product_count"] == 0
+    listing = call("get", admin_user, f"{API}/admin/categories").json()
+    assert next(c for c in listing if c["id"] == cid)["product_count"] == 0
     assert call("delete", admin_user, f"{API}/admin/categories/{cid}").status_code == 200
     assert not ProductCategory.objects.filter(pk=cid).exists()
 
@@ -192,3 +200,20 @@ def test_admin_upload_image(admin_user, published, settings, tmp_path):
     bad = Client().post(url, {"image": SimpleUploadedFile("p.txt", b"hi", "text/plain")},
                         **auth(admin_user))
     assert bad.status_code == 400
+
+
+def test_badge_and_detail_label_roundtrip(admin_user, category):
+    r = call("post", admin_user, f"{API}/admin/products", {
+        "title": "HMO Operations Handbook", "price": "69750", "category_id": category.id,
+        "status": "published", "badge": "Best seller", "detail_label": "296 pages"})
+    assert r.status_code == 201
+    pub = call("get", None, f"{API}/products").json()[0]
+    assert pub["badge"] == "Best seller" and pub["detail_label"] == "296 pages"
+    assert pub["price"] == 69750.0
+    r = call("patch", admin_user, f"{API}/admin/products/{r.json()['id']}", {"badge": ""})
+    assert r.json()["badge"] == "" and r.json()["detail_label"] == "296 pages"
+
+
+def test_badge_too_long_rejected(admin_user):
+    assert call("post", admin_user, f"{API}/admin/products",
+                {"title": "x", "badge": "b" * 41}).status_code == 400
