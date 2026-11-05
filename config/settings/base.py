@@ -36,6 +36,7 @@ LOCAL_APPS = [
     "apps.assessments",
     "apps.notifications",
     "apps.live",
+    "apps.shop",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 GOOGLE_CALENDAR_REDIRECT_URI = env("GOOGLE_CALENDAR_REDIRECT_URI",
